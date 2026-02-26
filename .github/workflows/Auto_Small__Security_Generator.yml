@@ -149,25 +149,23 @@ jobs:
           CHAT_ID: ${{ secrets.CHAT_ID }}
         run: |
           cd E-S-ET-K-Gen
-          python3 - <<PYTHON
-import os
-import requests
-import glob
-
-token = os.environ.get('TOKEN')
-chat_id = os.environ.get('CHAT_ID')
-message = "ESET Generator Results\n\n"
-
-# Add accounts
-for f in glob.glob("*ACCOUNTS.txt"):
-    with open(f) as file:
-        message += "Accounts:\n" + file.read() + "\n\n"
-
-# Add keys
-for f in glob.glob("*KEYS.txt"):
-    with open(f) as file:
-        message += "Keys:\n" + file.read() + "\n"
-
-url = f"https://api.telegram.org/bot{token}/sendMessage"
-requests.get(url, params={"chat_id": chat_id, "text": message})
-PYTHON
+          python3 -c "
+                      import os
+                      import requests
+                      import glob
+                      
+                      token = os.environ.get('TOKEN')
+                      chat_id = os.environ.get('CHAT_ID')
+                      message = 'ESET Generator Results\n\n'
+                      
+                      for f in glob.glob('*ACCOUNTS.txt'):
+                          with open(f) as file:
+                              message += 'Accounts:\n' + file.read() + '\n\n'
+                      
+                      for f in glob.glob('*KEYS.txt'):
+                          with open(f) as file:
+                              message += 'Keys:\n' + file.read() + '\n'
+                      
+                      url = f'https://api.telegram.org/bot{token}/sendMessage'
+                      requests.get(url, params={'chat_id': chat_id, 'text': message})
+                      "
