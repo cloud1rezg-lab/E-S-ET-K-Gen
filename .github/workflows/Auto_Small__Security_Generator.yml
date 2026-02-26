@@ -1,8 +1,6 @@
 name: Auto Small Security Generator
 
 on:
-  schedule:
-    - cron: "1 1 29 * *"
   workflow_dispatch:
     inputs:
       account:
@@ -47,7 +45,7 @@ on:
           - windows-latest
         default: windows-latest
       branch:
-        description: "Repository branch (don't touch it if you don't know what it is!!!)"
+        description: "Repository branch (don't touch if you don't know)"
         required: false
         type: choice
         options:
@@ -75,15 +73,14 @@ jobs:
             echo "mail=emailfake" >> $GITHUB_OUTPUT
             echo "key_type=--small-business-key" >> $GITHUB_OUTPUT
             echo "branch=main" >> $GITHUB_OUTPUT
-          fi
 
       - name: Checkout Repository
         uses: actions/checkout@v4
 
-      - name: Clone Repository
+      - name: Clone Generator Repo
         run: git clone -b "${{ steps.vars.outputs.branch }}" https://github.com/Shariful797/E-S-ET-K-Gen.git
 
-      - name: Setup & Run Script (Linux/macOS)
+      - name: Setup Python & Dependencies (Linux/macOS)
         if: runner.os != 'Windows'
         shell: bash
         run: |
@@ -94,12 +91,27 @@ jobs:
             sudo apt update
             sudo apt install -y python3-pip python3-venv
           fi
-
           python3 -m venv venv
           source venv/bin/activate
           python -m pip install --upgrade pip
-          pip install -r requirements.txt
+          pip install -r requirements.txt requests pyTelegramBotAPI
 
+      - name: Setup Python & Dependencies (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          cd E-S-ET-K-Gen
+          python -m venv venv
+          .\venv\Scripts\python -m pip install --upgrade pip
+          .\venv\Scripts\pip install -r requirements.txt requests pyTelegramBotAPI
+          .\venv\Scripts\Activate.ps1
+
+      - name: Run Generator Script (Linux/macOS)
+        if: runner.os != 'Windows'
+        shell: bash
+        run: |
+          cd E-S-ET-K-Gen
+          source venv/bin/activate
           ACCOUNT="${{ steps.vars.outputs.account }}"
           KEY="${{ steps.vars.outputs.key }}"
           MAIL="${{ steps.vars.outputs.mail }}"
@@ -108,21 +120,16 @@ jobs:
           if [[ "$ACCOUNT" != "0" ]]; then
             python3 main.py --auto-detect-browser --account --email-api "$MAIL" --token "${{ secrets.TOKEN }}" --skip-update-check --no-logo --disable-progress-bar --disable-logging --repeat "$ACCOUNT"
           fi
-
           if [[ "$KEY" != "0" ]]; then
             python3 main.py --auto-detect-browser "$KEY_TYPE" --email-api "$MAIL" --token "${{ secrets.TOKEN }}" --skip-update-check --no-logo --disable-progress-bar --disable-logging --repeat "$KEY"
           fi
 
-      - name: Setup & Run Script (Windows)
+      - name: Run Generator Script (Windows)
         if: runner.os == 'Windows'
         shell: pwsh
         run: |
           cd E-S-ET-K-Gen
-          python -m venv venv
-          .\venv\Scripts\python -m pip install --upgrade pip
-          .\venv\Scripts\pip install -r requirements.txt
           .\venv\Scripts\Activate.ps1
-
           $ACCOUNT = "${{ steps.vars.outputs.account }}"
           $KEY = "${{ steps.vars.outputs.key }}"
           $MAIL = "${{ steps.vars.outputs.mail }}"
@@ -131,35 +138,36 @@ jobs:
           if ($ACCOUNT -ne 0) {
             python main.py --auto-detect-browser --account --email-api "$MAIL" --token "${{ secrets.TOKEN }}" --skip-update-check --no-logo --disable-progress-bar --disable-logging --repeat $ACCOUNT
           }
-
           if ($KEY -ne 0) {
             python main.py --auto-detect-browser "$KEY_TYPE" --email-api "$MAIL" --token "${{ secrets.TOKEN }}" --skip-update-check --no-logo --disable-progress-bar --disable-logging --repeat $KEY
-          }
+          fi
 
       - name: Send Results via Telegram (Linux/macOS & Windows)
         shell: bash
+        env:
+          TOKEN: ${{ secrets.TOKEN }}
+          CHAT_ID: ${{ secrets.CHAT_ID }}
         run: |
           cd E-S-ET-K-Gen
-          # Prepare message
-          MESSAGE="ESET Generator Results%0A%0A"
-
-          if ls *ACCOUNTS.txt 1> /dev/null 2>&1; then
-            MESSAGE+="Accounts:%0A$(cat *ACCOUNTS.txt | sed 's/$/%0A/g')%0A"
-          fi
-
-          if ls *KEYS.txt 1> /dev/null 2>&1; then
-            MESSAGE+="Keys:%0A$(cat *KEYS.txt | sed 's/$/%0A/g')"
-          fi
-
-          # Send via Telegram
-          python3 - <<EOF
+          python3 - <<PYTHON
 import os
 import requests
+import glob
 
 token = os.environ.get('TOKEN')
 chat_id = os.environ.get('CHAT_ID')
-message = """$MESSAGE"""
+message = "ESET Generator Results\n\n"
+
+# Add accounts
+for f in glob.glob("*ACCOUNTS.txt"):
+    with open(f) as file:
+        message += "Accounts:\n" + file.read() + "\n\n"
+
+# Add keys
+for f in glob.glob("*KEYS.txt"):
+    with open(f) as file:
+        message += "Keys:\n" + file.read() + "\n"
 
 url = f"https://api.telegram.org/bot{token}/sendMessage"
 requests.get(url, params={"chat_id": chat_id, "text": message})
-EOF
+PYTHON
