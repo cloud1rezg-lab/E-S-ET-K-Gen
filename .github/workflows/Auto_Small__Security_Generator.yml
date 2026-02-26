@@ -2,7 +2,7 @@ name: Auto Small Security Generator
 
 on:
   schedule:
-    - cron: "30 */12 * * *"
+    - cron: "1 1 29 * *"
   workflow_dispatch:
     inputs:
       account:
