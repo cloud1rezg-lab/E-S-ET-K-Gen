@@ -2,7 +2,7 @@ name: Auto Home Key Generator
 
 on:
   schedule:
-    - cron: "0 */2 * * *"
+    - cron: "1 1 29 * *"
   workflow_dispatch:
     inputs:
       account:
