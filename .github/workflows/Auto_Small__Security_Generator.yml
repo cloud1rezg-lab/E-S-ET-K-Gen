@@ -148,7 +148,7 @@ jobs:
           }
           if ($KEY -ne 0) {
             python main.py --auto-detect-browser "$KEY_TYPE" --email-api "$MAIL" --token "${{ secrets.TOKEN }}" --skip-update-check --no-logo --disable-progress-bar --disable-logging --repeat $KEY
-          fi
+          }
 
       - name: Send Results via Telegram
         shell: bash
